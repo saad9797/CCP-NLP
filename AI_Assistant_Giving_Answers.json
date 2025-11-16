@@ -1,0 +1,265 @@
+{
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "9c8475e7-dca2-4fe4-98b3-7e319f89d2be",
+      "name": "Embeddings Google Gemini",
+      "type": "@n8n/n8n-nodes-langchain.embeddingsGoogleGemini",
+      "position": [
+        624,
+        496
+      ],
+      "typeVersion": 1,
+      "credentials": {
+        "googlePalmApi": {
+          "id": "2vEBRpKGUmRG7KoP",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolDescription": "Use this tool to search and retrieve relevant information from the user's materials stored in the vector database. Query the documents to answer user questions accurately.",
+        "tableName": {
+          "__rl": true,
+          "mode": "list",
+          "value": "documents",
+          "cachedResultName": "documents"
+        },
+        "options": {}
+      },
+      "id": "6a08d569-d6b3-4821-acc1-41fb930ec178",
+      "name": "Supabase Vector Store",
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+      "position": [
+        624,
+        304
+      ],
+      "typeVersion": 1.3,
+      "credentials": {
+        "supabaseApi": {
+          "id": "lf4iLUTbti6L3Mxr",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.sessionId }}",
+        "contextWindowLength": 10
+      },
+      "id": "ffc36cbd-e8f1-4e8f-8356-6bace0a1b1e0",
+      "name": "Postgres Chat Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+      "position": [
+        80,
+        512
+      ],
+      "typeVersion": 1.3,
+      "credentials": {
+        "postgres": {
+          "id": "ZFeQLsvGh35zGLU4",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "c1a2b990-24cb-43be-bd6d-fbea780894b0",
+      "name": "Calculator",
+      "type": "@n8n/n8n-nodes-langchain.toolCalculator",
+      "position": [
+        480,
+        368
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "public": true,
+        "options": {}
+      },
+      "id": "ae666984-a3aa-4d54-b549-9de90359ecca",
+      "name": "When chat message received",
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "position": [
+        -112,
+        96
+      ],
+      "webhookId": "6f7911bb-b08c-40ba-b613-a81d3d26ee18",
+      "typeVersion": 1.3
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.5-pro",
+        "options": {}
+      },
+      "id": "7fb90fdb-42ac-49cc-bffd-39d112ba1f95",
+      "name": "Google Gemini Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "position": [
+        -32,
+        352
+      ],
+      "typeVersion": 1,
+      "credentials": {
+        "googlePalmApi": {
+          "id": "2vEBRpKGUmRG7KoP",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.chatInput }}",
+        "options": {
+          "systemMessage": " You are an Educational Information Assistant that helps users interact with institutional documents such as fee structures, admission procedures, educational guidelines, academic rules, and policy documents in a natural, conversational way.\n\nCore Behavior\n\nAlways respond conversationally and helpfully.\nYou can answer questions, provide information from stored institutional documents, and assist with file uploads—all while maintaining a friendly, natural dialogue.\n\nInput Handling\n1. Google Drive Links\n\nWhen you detect a Google Drive URL (folder or file):\n\nPattern: https://drive.google.com/drive/folders/ or https://drive.google.com/file/d/\n\nAction: Automatically trigger the DriveFolderToSupabase workflow\n\nResponse: Confirm the upload is processing:\n\"I'm uploading your institutional documents to the vector store. This will take a moment...\"\n\n2. Institutional Document Queries\n\nWhen users ask questions about their institutional materials (fees, admissions, guidelines, regulations, policies):\n\nSearch the vector store using available retrieval tools\n\nAlways check the vector store first before saying you don't have information\n\nProvide clear, helpful answers with citations\n\nInclude document names, sections, or page numbers when available\n\n3. General Conversation\n\nWhen users engage in general conversation:\n\nRespond naturally and helpfully\n\nIf they are asking about institutional documents, admissions, fees, or policies, search the vector store\n\nUse context from previous messages\n\nBe conversational, not robotic\n\nCritical Rules\n\nNever refuse to search: If someone asks “what’s in the documents” or “tell me about the admission process,” immediately query the vector store\n\nInfer intent: Questions like \"fees?\", “how do I apply?”, “what are the rules?” must trigger a search\n\nUse broad searches when unsure (e.g., “fee”, “admission”, “guideline”, “policy”)\n\nAcknowledge limitations gracefully only after searching\n\nMaintain conversation context, referencing earlier exchanges where helpful\n\nSearch Strategy\n\nWhen querying the vector store:\n\nUse keywords and concepts from the user's question\n\nTry multiple related terms if the first search is weak\n\nFor broad prompts like “what documents are uploaded?”, search for:\n\n“overview”\n\n“summary”\n\n“guidelines”\n\n“policies”\n\nAlways attempt a search before saying you don’t have the information\n\nResponse Format\n\nProvide direct answers\n\nCite sources from retrieved documents\n\nSuggest related institutional information when appropriate\n\nAsk clarifying questions only when absolutely necessary, not as default\n\nExamples\n\nBad Response:\n\"I need a specific question to search for.\"\n\nGood Response:\n[Searches vector store]\n\"Based on your uploaded documents, I found details in the Fee Structure 2024 PDF. Here's what it says about the tuition fee…\"\n\nBad Response:\n\"I don't know the admission requirements.\"\n\nGood Response:\n[Searches vector store]\n\"I checked your institutional documents and found admission guidelines in Admission Policy.pdf. Here are the eligibility requirements…\""
+        }
+      },
+      "id": "d1ae4f6d-2fe2-4de0-b743-68a7a68eae9f",
+      "name": "Study Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "position": [
+        160,
+        96
+      ],
+      "typeVersion": 2.2
+    },
+    {
+      "parameters": {
+        "content": "# 🤖 AI Assistant (RAG Chat)\n\n**Purpose:** Conversational AI that helps you by answering questions from your uploaded documents.\n\n**Flow:** Chat Input → AI Agent → Vector Search + Memory + Tools → Response\n\n**Key Features:**\n- Natural conversation with your study materials\n- Auto-processes Drive links shared in chat\n- Semantic search across documents\n- Persistent chat memory\n- Calculator for math problems\n\n**Tools Connected:**\n1. Supabase Vector Store (document search)\n2. Drive Folder Uploader (auto-index new files)\n3. Calculator (math operations)\n4. Postgres Memory (conversation history)\n\nchange this in the same format just simple difference that \n",
+        "height": 640,
+        "width": 336
+      },
+      "id": "6458b737-490c-4fc5-beb1-f850f3d48d88",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -512,
+        0
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "content": "**AI Agent (Core)** - Orchestrates all tools and memory. Handles Drive links, searches documents, maintains context, and responds naturally using Gemini 2.5 Pro.\n",
+        "height": 352,
+        "width": 288,
+        "color": 4
+      },
+      "id": "75514075-c372-4fcf-9e2c-c1364da5fd76",
+      "name": "Sticky Note1",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        128,
+        -64
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "content": "**Document Search Tool** - Retrieves relevant information from uploaded study materials using semantic similarity search with 768-dim embeddings.\n",
+        "height": 272,
+        "width": 150
+      },
+      "id": "f31375f3-6297-4b7d-8ac4-032648df8cfe",
+      "name": "Sticky Note2",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        864,
+        16
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "content": "\n\n\n\n\n\n**Drive Uploader Tool** - When user shares a Drive link in chat, automatically triggers the indexing workflow to add files to vector store.\n",
+        "height": 208
+      },
+      "id": "c62fdbca-5fae-4b58-b58f-0c068aa4cce7",
+      "name": "Sticky Note3",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        224,
+        496
+      ],
+      "typeVersion": 1
+    }
+  ],
+  "connections": {
+    "Embeddings Google Gemini": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Supabase Vector Store",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase Vector Store": {
+      "ai_tool": [
+        [
+          {
+            "node": "Study Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres Chat Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "Study Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculator": {
+      "ai_tool": [
+        [
+          {
+            "node": "Study Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "Study Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Study Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "9f7b17ed1bcd9d728066ef542fc3d931ac4f88829d917f4ad42704c1f78ea9a8"
+  }
+}

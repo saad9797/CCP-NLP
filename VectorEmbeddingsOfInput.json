@@ -1,0 +1,74 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "language": "python",
+        "pythonCode": "import re\n\n# Get input from n8n\ntext = _('When chat message received').first().json.chatInput\n\n# --- STEP 1: Basic Cleaning ---\ndef clean_text(t):\n    t = t.lower()\n    t = re.sub(r\"\\s+\", \" \", t)           # remove extra spaces\n    t = re.sub(r\"[^\\w\\s]\", \"\", t)        # remove punctuation\n    return t.strip()\n\n# --- STEP 2: Tokenization ---\ndef tokenize(t):\n    return t.split()\n\n# --- STEP 3: Stopword Removal ---\nSTOPWORDS = {\n    \"the\",\"is\",\"am\",\"are\",\"a\",\"an\",\"and\",\"to\",\"in\",\"of\",\"for\",\"with\",\"on\",\n    \"that\",\"this\",\"it\",\"as\",\"at\",\"be\",\"by\",\"from\",\"or\",\"your\",\"you\"\n}\n\ndef remove_stopwords(tokens):\n    return [t for t in tokens if t not in STOPWORDS]\n\n# --- STEP 4: Simple Stemming (Handmade Basic Rules) ---\ndef simple_stem(word):\n    if word.endswith(\"ing\") and len(word) > 4:\n        return word[:-3]\n    if word.endswith(\"ed\") and len(word) > 3:\n        return word[:-2]\n    if word.endswith(\"s\") and len(word) > 3:\n        return word[:-1]\n    return word\n\ndef stem_tokens(tokens):\n    return [simple_stem(t) for t in tokens]\n\n# --- STEP 5: Frequency Scoring ---\ndef frequency(tokens):\n    freq = {}\n    for t in tokens:\n        freq[t] = freq.get(t, 0) + 1\n    return freq\n\n# --- STEP 6: Keyword Extraction (Top 5) ---\ndef top_keywords(freq):\n    return sorted(freq.items(), key=lambda x: x[1], reverse=True)[:5]\n\n# Run the NLP pipeline\ncleaned = clean_text(text)\ntokens = tokenize(cleaned)\nfiltered = remove_stopwords(tokens)\nstemmed = stem_tokens(filtered)\nfreq = frequency(stemmed)\nkeywords = top_keywords(freq)\n\n# --- STEP 7: Generate a tiny summary ---\nsummary = \"\"\nif keywords:\n    summary = f\"This text mainly talks about: \" + \", \".join([k for k, _ in keywords])\n\n# Return results back to n8n\nreturn [{\n    \"json\": {\n        \"cleaned_text\": cleaned,\n        \"tokens\": tokens,\n        \"filtered_tokens\": filtered,\n        \"stemmed_tokens\": stemmed,\n        \"frequencies\": freq,\n        \"top_keywords\": keywords,\n        \"summary\": summary\n    }\n}]\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        432,
+        0
+      ],
+      "id": "a7b2a6f8-c21b-48ac-9f0a-c7d612ffc8a1",
+      "name": "Tokenization,Stemming,Frequency,Top Words,Summary(Meaning)"
+    },
+    {
+      "parameters": {
+        "language": "python",
+        "pythonCode": "import re\nimport math\n\n# Get chat input from n8n\ntext = _input.first().json.chatInput\n\n# ----------- STEP 1: CLEANING -----------\ndef clean_text(t):\n    t = t.lower()\n    t = re.sub(r\"[^\\w\\s]\", \"\", t)\n    t = re.sub(r\"\\s+\", \" \", t)\n    return t.strip()\n\ncleaned = clean_text(text)\n\n# ----------- STEP 2: TOKENIZATION -----------\ntokens = cleaned.split()\n\n# ----------- STEP 3: BUILD VOCAB -----------\n# Vocabulary = unique words\nvocab = sorted(set(tokens))\n\n# Map each word to an index for vector creation\nword_index = {word: i for i, word in enumerate(vocab)}\n\n# ----------- STEP 4: VECTOR EMBEDDING (Bag-of-Words) -----------\n# Create zero vector\nvector = [0] * len(vocab)\n\n# Count each word into the vector\nfor word in tokens:\n    vector[word_index[word]] += 1\n\n# ----------- STEP 5: NORMALIZE THE VECTOR -----------\ndef normalize(vec):\n    length = math.sqrt(sum(v * v for v in vec))\n    if length == 0:\n        return vec\n    return [v / length for v in vec]\n\nnormalized_vector = normalize(vector)\n\n# ----------- STEP 6: RETURN TO n8n -----------\nreturn [{\n    \"json\": {\n        \"input\": text,\n        \"cleaned\": cleaned,\n        \"tokens\": tokens,\n        \"vocab\": vocab,\n        \"embedding_vector\": normalized_vector,\n        \"vector_length\": len(normalized_vector)\n    }\n}]\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        0
+      ],
+      "id": "f551222f-0e2c-47b0-ad8a-25bd6fcc2946",
+      "name": "Vector Embeddings"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "id": "2d8b6cbb-88dc-4e0b-b9e7-7c8c7eda5595",
+      "name": "When chat message received",
+      "webhookId": "b4b33aba-90a0-48de-b096-ca73fb517763"
+    }
+  ],
+  "connections": {
+    "Vector Embeddings": {
+      "main": [
+        [
+          {
+            "node": "Tokenization,Stemming,Frequency,Top Words,Summary(Meaning)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "Vector Embeddings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "instanceId": "9f7b17ed1bcd9d728066ef542fc3d931ac4f88829d917f4ad42704c1f78ea9a8"
+  }
+}
